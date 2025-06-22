@@ -9,6 +9,7 @@ import android.view.View
 import android.widget.Toast
 import kotlin.random.Random
 import kotlin.math.min
+import kotlin.math.sqrt
 
 class SudokuBoardView @JvmOverloads constructor(
     context: Context,
@@ -92,52 +93,82 @@ class SudokuBoardView @JvmOverloads constructor(
     }
 
     private fun generatePuzzle() {
-        board = Array(boardSize) { IntArray(boardSize) }
-        solution = Array(boardSize) { IntArray(boardSize) }
+        val side = boardSize                              // 4 lub 9
+        val base = sqrt(side.toDouble()).toInt()          // 2 dla 4×4, 3 dla 9×9
 
-        // Prosta implementacja generatora Sudoku
-        val base = when (boardSize) {
-            9 -> listOf(1, 2, 3, 4, 5, 6, 7, 8, 9).shuffled().toIntArray()
-            6 -> listOf(1, 2, 3, 4, 5, 6).shuffled().toIntArray()
-            else -> listOf(1, 2, 3, 4).shuffled().toIntArray()
+        // 1) Wygeneruj pełne rozwiązanie (pattern + shuffle grup) i od razu zapisz do `board`
+        fun pattern(r: Int, c: Int) = (base * (r % base) + r / base + c) % side
+        val nums = (1..side).shuffled()
+
+        // wypełnianie
+        board = Array(side) { r ->
+            IntArray(side) { c -> nums[pattern(r, c)] }
         }
 
-        for (i in 0 until boardSize) {
-            for (j in 0 until boardSize) {
-                board[i][j] = base[(j + i) % boardSize]
-                solution[i][j] = board[i][j]
-            }
-        }
-
-        // Przetasuj wiersze/kolumny dla losowości
+        // wielokrotne przetasowania
         repeat(20) {
             when (Random.nextInt(4)) {
-                0 -> swapRows(Random.nextInt(boardSize), Random.nextInt(boardSize))
-                1 -> swapColumns(Random.nextInt(boardSize), Random.nextInt(boardSize))
-                2 -> swapRowGroups()
-                3 -> swapColumnGroups()
+                0 -> swapRowsRandomlyInBand(base)
+                1 -> swapColsRandomlyInStack(base)
+                2 -> swapRowGroupsRandom(base)
+                3 -> swapColGroupsRandom(base)
             }
         }
 
-        Log.d(TAG, "Puzzle generated")
+        // 2) Kopiujemy board do solution
+        solution = board.map { it.copyOf() }.toTypedArray()
+        Log.d(TAG, "Puzzle generated and solution saved")
+    }
+    // Zamienia dwie losowe wiersze wewnątrz tego samego bandu
+    private fun swapRowsRandomlyInBand(base: Int) {
+        val band = Random.nextInt(base)
+        val r1 = band * base + Random.nextInt(base)
+        val r2 = band * base + Random.nextInt(base)
+        board.swapRows(r1, r2)
     }
 
+    private fun swapColsRandomlyInStack(base: Int) {
+        val stack = Random.nextInt(base)
+        val c1 = stack * base + Random.nextInt(base)
+        val c2 = stack * base + Random.nextInt(base)
+        board.swapCols(c1, c2)
+    }
+
+    // Zamienia dwa całe bandy wierszy (każdy po `base` wierszy)
+    private fun swapRowGroupsRandom(base: Int) {
+        val b1 = Random.nextInt(base)
+        val b2 = Random.nextInt(base)
+        for (i in 0 until base) board.swapRows(b1*base + i, b2*base + i)
+    }
+
+    // Zamienia dwa całe stacki kolumn
+    private fun swapColGroupsRandom(base: Int) {
+        val s1 = Random.nextInt(base)
+        val s2 = Random.nextInt(base)
+        for (i in 0 until base) board.swapCols(s1*base + i, s2*base + i)
+    }
+
+    // Rozszerzenia tablicy
+    private fun Array<IntArray>.swapRows(r1: Int, r2: Int) {
+        val tmp = this[r1]; this[r1] = this[r2]; this[r2] = tmp
+    }
+    private fun Array<IntArray>.swapCols(c1: Int, c2: Int) {
+        for (r in indices) {
+            val tmp = this[r][c1]; this[r][c1] = this[r][c2]; this[r][c2] = tmp
+        }
+    }
+
+
+
     private fun prepareBoard(difficulty: String) {
-        originalBoard = Array(boardSize) { IntArray(boardSize) }
+        // określamy, ile komórek usunąć
         val cellsToRemove = when (difficulty) {
             "easy" -> boardSize * boardSize / 2
             "medium" -> boardSize * boardSize * 2 / 3
             else -> boardSize * boardSize * 3 / 4
         }
 
-        // Skopiuj rozwiązanie do oryginalnej planszy
-        for (i in 0 until boardSize) {
-            for (j in 0 until boardSize) {
-                originalBoard[i][j] = board[i][j]
-            }
-        }
-
-        // Usuń komórki - ustaw na 0, ale tylko jeśli nie są już puste
+        // tu już mamy w `board` wstępnie wygenerowaną pełną planszę (wygaszamy wartości)
         var removed = 0
         while (removed < cellsToRemove) {
             val row = Random.nextInt(boardSize)
@@ -147,8 +178,15 @@ class SudokuBoardView @JvmOverloads constructor(
                 removed++
             }
         }
+        Log.d(TAG, "Usunięto $removed komórek. Edytowalnych: $cellsToRemove")
 
-        Log.d(TAG, "Usunięto $removed komórek. Edytowalne komórki: ${cellsToRemove}")
+        // dopiero teraz zapamiętujemy, które pola są PUSTE (czyli edytowalne)
+        originalBoard = Array(boardSize) { IntArray(boardSize) }
+        for (i in 0 until boardSize) {
+            for (j in 0 until boardSize) {
+                originalBoard[i][j] = board[i][j]
+            }
+        }
     }
 
     fun checkSolution() {
@@ -163,8 +201,11 @@ class SudokuBoardView @JvmOverloads constructor(
                 }
             }
         }
-        Toast.makeText(context, "Gratulacje! Rozwiązanie poprawne!", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "🎉 Gratulacje! Rozwiązanie poprawne!", Toast.LENGTH_LONG).show()
+        // zablokuj dalsze zmiany
+        originalBoard = Array(boardSize) { IntArray(boardSize) }
     }
+
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
@@ -278,11 +319,10 @@ class SudokuBoardView @JvmOverloads constructor(
 
     // Sprawdź czy komórka może być edytowana
     private fun isCellEditable(row: Int, col: Int): Boolean {
-        // Komórka jest edytowalna jeśli:
-        // 1. W obecnej planszy jest pusta (0)
-        // 2. W oryginalnej planszy była wypełniona (nie 0)
-        return board[row][col] == 0 && originalBoard[row][col] != 0
+        // komórka edytowalna, jeśli w oryginalnym puzzlu była pusta
+        return originalBoard[row][col] == 0
     }
+
 
     // Pomocnicze funkcje do generowania planszy
     private fun swapRows(row1: Int, row2: Int) {
