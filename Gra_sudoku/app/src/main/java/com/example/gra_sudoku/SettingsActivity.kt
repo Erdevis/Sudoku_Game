@@ -1,62 +1,59 @@
 package com.example.gra_sudoku
 
+import android.content.Context
 import android.os.Bundle
 import android.widget.Button
-import android.widget.RadioButton
-import android.widget.SeekBar
-import android.widget.Toast
+import android.widget.RadioGroup
 import androidx.appcompat.app.AppCompatActivity
+import android.widget.Toast
 
 class SettingsActivity : AppCompatActivity() {
+
+    private lateinit var rgBoardSize: RadioGroup
+    private lateinit var rgDifficulty: RadioGroup
+    private lateinit var btnSave: Button
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
 
-        val prefs = getSharedPreferences("SudokuPrefs", MODE_PRIVATE)
-        val editor = prefs.edit()
+        rgBoardSize   = findViewById(R.id.rgBoardSize)
+        rgDifficulty  = findViewById(R.id.rgDifficulty)
+        btnSave       = findViewById(R.id.btnSaveSettings)
 
-        // Przywróć zapisane ustawienia
-        val savedBoardSize = prefs.getInt("board_size", 9)
-        val savedDifficulty = prefs.getString("difficulty", "medium") ?: "medium"
-        val savedVolume = prefs.getInt("volume", 100)
-
-        findViewById<SeekBar>(R.id.seekBarVolume).progress = savedVolume
-
-        when (savedBoardSize) {
-            9 -> findViewById<RadioButton>(R.id.rb9x9).isChecked = true
-            6 -> findViewById<RadioButton>(R.id.rb6x6).isChecked = true
-            4 -> findViewById<RadioButton>(R.id.rb4x4).isChecked = true
+        // Wczytaj poprzednie ustawienia (jeśli są)
+        val prefs = getSharedPreferences("GraSudokuPrefs", Context.MODE_PRIVATE)
+        when (prefs.getInt("BOARD_SIZE", 9)) {
+            9 -> rgBoardSize.check(R.id.rb9x9)
+            6 -> rgBoardSize.check(R.id.rb6x6)
+            4 -> rgBoardSize.check(R.id.rb4x4)
+        }
+        when (prefs.getString("DIFFICULTY", "medium")) {
+            "easy"   -> rgDifficulty.check(R.id.rbEasy)
+            "medium" -> rgDifficulty.check(R.id.rbMedium)
+            "hard"   -> rgDifficulty.check(R.id.rbHard)
         }
 
-        when (savedDifficulty) {
-            "easy" -> findViewById<RadioButton>(R.id.rbEasy).isChecked = true
-            "medium" -> findViewById<RadioButton>(R.id.rbMedium).isChecked = true
-            "hard" -> findViewById<RadioButton>(R.id.rbHard).isChecked = true
-        }
-
-        findViewById<Button>(R.id.btnSaveSettings).setOnClickListener {
-            // Zapisz wielkość planszy
-            val boardSize = when {
-                findViewById<RadioButton>(R.id.rb9x9).isChecked -> 9
-                findViewById<RadioButton>(R.id.rb6x6).isChecked -> 6
-                else -> 4
+        btnSave.setOnClickListener {
+            val editor = prefs.edit()
+            // Board size
+            val size = when (rgBoardSize.checkedRadioButtonId) {
+                R.id.rb9x9 -> 9
+                R.id.rb6x6 -> 6
+                else       -> 4
             }
-            editor.putInt("board_size", boardSize)
+            editor.putInt("BOARD_SIZE", size)
 
-            // Zapisz trudność
-            val difficulty = when {
-                findViewById<RadioButton>(R.id.rbEasy).isChecked -> "easy"
-                findViewById<RadioButton>(R.id.rbMedium).isChecked -> "medium"
-                else -> "hard"
+            // Difficulty
+            val diff = when (rgDifficulty.checkedRadioButtonId) {
+                R.id.rbEasy   -> "easy"
+                R.id.rbHard   -> "hard"
+                else          -> "medium"
             }
-            editor.putString("difficulty", difficulty)
-
-            // Zapisz głośność
-            val volume = findViewById<SeekBar>(R.id.seekBarVolume).progress
-            editor.putInt("volume", volume)
-
+            editor.putString("DIFFICULTY", diff)
             editor.apply()
-            Toast.makeText(this, "Ustawienia zapisane!", Toast.LENGTH_SHORT).show()
+
+            Toast.makeText(this, "Ustawienia zapisane", Toast.LENGTH_SHORT).show()
             finish()
         }
     }

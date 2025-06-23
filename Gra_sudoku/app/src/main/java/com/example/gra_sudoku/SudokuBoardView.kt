@@ -31,7 +31,13 @@ class SudokuBoardView @JvmOverloads constructor(
     private var cellSize = 0F
     private var selectedRow = -1
     private var selectedCol = -1
-    private var boardSize = 9
+    var boardSize: Int = 9
+        private set
+    private var blockRows: Int = 3
+    private var blockCols: Int = 3
+
+
+
     private lateinit var board: Array<IntArray>
     private lateinit var solution: Array<IntArray>
     private lateinit var originalBoard: Array<IntArray>
@@ -74,15 +80,25 @@ class SudokuBoardView @JvmOverloads constructor(
         isFocusableInTouchMode = true
     }
 
+
+
     fun initializeBoard(size: Int, difficulty: String) {
         boardSize = size
-        textPaint.textSize = when (size) {
-            9 -> 48F
-            6 -> 64F
-            else -> 72F
+
+        // obliczamy wymiary bloku
+        when (boardSize) {
+            4 -> { blockRows = 2; blockCols = 2 }
+            6 -> { blockRows = 2; blockCols = 3 }
+            9 -> { blockRows = 3; blockCols = 3 }
+            else -> {
+                val b = sqrt(boardSize.toDouble()).toInt()
+                blockRows = b; blockCols = b
+            }
         }
-        fixedTextPaint.textSize = textPaint.textSize
-        errorTextPaint.textSize = textPaint.textSize
+
+
+        // teksty skalujemy według boardSize jak wcześniej...
+        // a potem:
         generateNewBoard(difficulty)
     }
 
@@ -93,32 +109,50 @@ class SudokuBoardView @JvmOverloads constructor(
     }
 
     private fun generatePuzzle() {
-        val side = boardSize                              // 4 lub 9
-        val base = sqrt(side.toDouble()).toInt()          // 2 dla 4×4, 3 dla 9×9
-
-        // 1) Wygeneruj pełne rozwiązanie (pattern + shuffle grup) i od razu zapisz do `board`
-        fun pattern(r: Int, c: Int) = (base * (r % base) + r / base + c) % side
+        val side = boardSize
+        // 1) pattern dla prostokątnych bloków
+        fun pattern(r: Int, c: Int) =
+            (blockCols * (r % blockRows) + r / blockRows + c) % side
         val nums = (1..side).shuffled()
 
-        // wypełnianie
+        // 2) wypełniamy board
         board = Array(side) { r ->
             IntArray(side) { c -> nums[pattern(r, c)] }
         }
 
-        // wielokrotne przetasowania
+        // 3) liczba grup (band) i stacków
+        val rowBands = side / blockRows
+        val colStacks = side / blockCols
+
+        // 4) przetasowania w bandach/stackach i między nimi
         repeat(20) {
-            when (Random.nextInt(4)) {
-                0 -> swapRowsRandomlyInBand(base)
-                1 -> swapColsRandomlyInStack(base)
-                2 -> swapRowGroupsRandom(base)
-                3 -> swapColGroupsRandom(base)
-            }
+            // swap wierszy w bandzie
+            val b = Random.nextInt(rowBands)
+            val r1 = b * blockRows + Random.nextInt(blockRows)
+            val r2 = b * blockRows + Random.nextInt(blockRows)
+            board.swapRows(r1, r2)
+
+            // swap kolumn w stacku
+            val s = Random.nextInt(colStacks)
+            val c1 = s * blockCols + Random.nextInt(blockCols)
+            val c2 = s * blockCols + Random.nextInt(blockCols)
+            board.swapCols(c1, c2)
+
+            // swap całych band
+            val b1 = Random.nextInt(rowBands)
+            val b2 = Random.nextInt(rowBands)
+            for (i in 0 until blockRows) board.swapRows(b1*blockRows + i, b2*blockRows + i)
+
+            // swap całych stacków
+            val s1 = Random.nextInt(colStacks)
+            val s2 = Random.nextInt(colStacks)
+            for (i in 0 until blockCols) board.swapCols(s1*blockCols + i, s2*blockCols + i)
         }
 
-        // 2) Kopiujemy board do solution
+        // 5) zapis rozwiązania
         solution = board.map { it.copyOf() }.toTypedArray()
-        Log.d(TAG, "Puzzle generated and solution saved")
     }
+
     // Zamienia dwie losowe wiersze wewnątrz tego samego bandu
     private fun swapRowsRandomlyInBand(base: Int) {
         val band = Random.nextInt(base)
@@ -225,7 +259,7 @@ class SudokuBoardView @JvmOverloads constructor(
     }
 
     private fun drawBoard(canvas: Canvas) {
-        // Rysowanie komórek
+        // podświetlenie
         if (selectedRow != -1 && selectedCol != -1) {
             canvas.drawRect(
                 selectedCol * cellSize,
@@ -236,31 +270,15 @@ class SudokuBoardView @JvmOverloads constructor(
             )
         }
 
-        // Rysowanie linii
+        // rysowanie linii
         for (i in 0..boardSize) {
-            val paint = if (i % when (boardSize) {
-                    9 -> 3
-                    6 -> 2
-                    else -> 2
-                } == 0) thickLinePaint else thinLinePaint
+            // poziome co blockRows
+            val paintH = if (i % blockRows == 0) thickLinePaint else thinLinePaint
+            canvas.drawLine(0f, i * cellSize, width.toFloat(), i * cellSize, paintH)
 
-            // Poziome linie
-            canvas.drawLine(
-                0F,
-                i * cellSize,
-                width.toFloat(),
-                i * cellSize,
-                paint
-            )
-
-            // Pionowe linie
-            canvas.drawLine(
-                i * cellSize,
-                0F,
-                i * cellSize,
-                height.toFloat(),
-                paint
-            )
+            // pionowe co blockCols
+            val paintV = if (i % blockCols == 0) thickLinePaint else thinLinePaint
+            canvas.drawLine(i * cellSize, 0f, i * cellSize, height.toFloat(), paintV)
         }
     }
 
