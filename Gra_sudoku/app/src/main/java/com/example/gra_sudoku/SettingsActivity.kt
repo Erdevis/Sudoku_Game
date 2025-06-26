@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Bundle
 import android.widget.Button
 import android.widget.RadioGroup
+import android.widget.SeekBar
 import androidx.appcompat.app.AppCompatActivity
 import android.widget.Toast
 
@@ -12,6 +13,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var rgBoardSize: RadioGroup
     private lateinit var rgDifficulty: RadioGroup
     private lateinit var btnSave: Button
+    private lateinit var seekBarVolume: SeekBar
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -20,9 +22,15 @@ class SettingsActivity : AppCompatActivity() {
         rgBoardSize   = findViewById(R.id.rgBoardSize)
         rgDifficulty  = findViewById(R.id.rgDifficulty)
         btnSave       = findViewById(R.id.btnSaveSettings)
+        seekBarVolume = findViewById(R.id.seekBarVolume) // Znajdź suwak w layout
 
         // Wczytaj poprzednie ustawienia (jeśli są)
         val prefs = getSharedPreferences("GraSudokuPrefs", Context.MODE_PRIVATE)
+
+        // Wczytaj zapisaną głośność (domyślnie 100)
+        val savedVolume = prefs.getInt("VOLUME", 100)
+        seekBarVolume.progress = savedVolume
+
         when (prefs.getInt("BOARD_SIZE", 9)) {
             9 -> rgBoardSize.check(R.id.rb9x9)
             6 -> rgBoardSize.check(R.id.rb6x6)
@@ -51,6 +59,9 @@ class SettingsActivity : AppCompatActivity() {
                 else          -> "medium"
             }
             editor.putString("DIFFICULTY", diff)
+            // ZAPISZ GŁOŚNOŚĆ
+            editor.putInt("VOLUME", seekBarVolume.progress)
+
             editor.apply()
 
             Toast.makeText(this, "Ustawienia zapisane", Toast.LENGTH_SHORT).show()

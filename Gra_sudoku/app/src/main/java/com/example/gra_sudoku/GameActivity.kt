@@ -1,6 +1,7 @@
 package com.example.gra_sudoku
 
 import android.content.Context
+import android.media.AudioManager
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
@@ -19,13 +20,22 @@ class GameActivity : AppCompatActivity(), SudokuBoardView.OnCellSelectedListener
     private lateinit var btnBack: Button
     private lateinit var tvDifficulty: TextView
 
+    private lateinit var audioManager: AudioManager
+    private var soundVolume = 1.0f
+
+
     // nie trzymamy tych zmiennych jako pola – pobieramy je w onCreate
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_game)
 
+        // Inicjalizacja AudioManager
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        //audioManager.playSoundEffect(AudioManager.FX_KEY_CLICK, soundVolume)
+
         // 1) SharedPreferences
         val prefs = getSharedPreferences("GraSudokuPrefs", Context.MODE_PRIVATE)
+        soundVolume = prefs.getInt("VOLUME", 100) / 100f
         val boardSize  = prefs.getInt("BOARD_SIZE", 9)
         val difficulty = prefs.getString("DIFFICULTY", "medium")!!
 
@@ -71,7 +81,13 @@ class GameActivity : AppCompatActivity(), SudokuBoardView.OnCellSelectedListener
         }
     }
 
+    private fun playSound() {
+        audioManager.playSoundEffect(AudioManager.FX_KEY_CLICK, soundVolume)
+    }
+
+
     override fun onCellSelected(row: Int, col: Int) {
+        playSound()
         setupNumberPad()
         numberPad.visibility = View.VISIBLE
     }
@@ -85,18 +101,15 @@ class GameActivity : AppCompatActivity(), SudokuBoardView.OnCellSelectedListener
                 btn.visibility = View.VISIBLE
                 btn.setOnClickListener {
                     sudokuBoard.setCellValue(idx + 1)
+                    playSound()
                     numberPad.visibility = View.GONE
                 }
-            } else {
-                btn.visibility = View.GONE
             }
         }
-        btnClear.apply {
-            visibility = View.VISIBLE
-            setOnClickListener {
-                sudokuBoard.setCellValue(0)
-                numberPad.visibility = View.GONE
-            }
+        btnClear.setOnClickListener {
+            sudokuBoard.setCellValue(0)
+            playSound()
+            numberPad.visibility = View.GONE
         }
     }
 }
