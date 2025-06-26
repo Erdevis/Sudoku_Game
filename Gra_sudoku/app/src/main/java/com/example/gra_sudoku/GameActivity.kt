@@ -31,7 +31,7 @@ class GameActivity : AppCompatActivity(), SudokuBoardView.OnCellSelectedListener
 
         // Inicjalizacja AudioManager
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        
+
 
         // 1) SharedPreferences
         val prefs = getSharedPreferences("GraSudokuPrefs", Context.MODE_PRIVATE)
