@@ -48,9 +48,9 @@ class SudokuBoardView @JvmOverloads constructor(
         strokeWidth = 4F
     }
     private val thinLinePaint = Paint().apply {
-        color = Color.BLACK
+        color = Color.parseColor("#30000000") // Półprzezroczysta czerń
         style = Paint.Style.STROKE
-        strokeWidth = 1F
+        strokeWidth = 1.5F  // Zwiększona grubość
     }
     private val selectedCellPaint = Paint().apply {
         color = Color.parseColor("#6AB7FD")
@@ -85,7 +85,6 @@ class SudokuBoardView @JvmOverloads constructor(
     fun initializeBoard(size: Int, difficulty: String) {
         boardSize = size
 
-        // obliczamy wymiary bloku
         when (boardSize) {
             4 -> { blockRows = 2; blockCols = 2 }
             6 -> { blockRows = 2; blockCols = 3 }
@@ -96,9 +95,6 @@ class SudokuBoardView @JvmOverloads constructor(
             }
         }
 
-
-        // teksty skalujemy według boardSize jak wcześniej...
-        // a potem:
         generateNewBoard(difficulty)
     }
 
@@ -245,11 +241,16 @@ class SudokuBoardView @JvmOverloads constructor(
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
         val size = min(measuredWidth, measuredHeight)
         cellSize = size / boardSize.toFloat()
+
+        // Skalowanie grubości linii
+        val scale = resources.displayMetrics.density
+        thickLinePaint.strokeWidth = 4F * scale
+        thinLinePaint.strokeWidth = 1.5F * scale
+
         textPaint.textSize = cellSize * 0.6F
         fixedTextPaint.textSize = cellSize * 0.6F
         errorTextPaint.textSize = cellSize * 0.6F
         setMeasuredDimension(size, size)
-        Log.d(TAG, "Measured size: $size, cellSize: $cellSize")
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -259,7 +260,7 @@ class SudokuBoardView @JvmOverloads constructor(
     }
 
     private fun drawBoard(canvas: Canvas) {
-        // podświetlenie
+        // Podświetlenie wybranej komórki
         if (selectedRow != -1 && selectedCol != -1) {
             canvas.drawRect(
                 selectedCol * cellSize,
@@ -270,15 +271,23 @@ class SudokuBoardView @JvmOverloads constructor(
             )
         }
 
-        // rysowanie linii
+        // Najpierw rysuj wszystkie cienkie linie
         for (i in 0..boardSize) {
-            // poziome co blockRows
-            val paintH = if (i % blockRows == 0) thickLinePaint else thinLinePaint
-            canvas.drawLine(0f, i * cellSize, width.toFloat(), i * cellSize, paintH)
+            // Poziome
+            canvas.drawLine(0f, i * cellSize, width.toFloat(), i * cellSize, thinLinePaint)
+            // Pionowe
+            canvas.drawLine(i * cellSize, 0f, i * cellSize, height.toFloat(), thinLinePaint)
+        }
 
-            // pionowe co blockCols
-            val paintV = if (i % blockCols == 0) thickLinePaint else thinLinePaint
-            canvas.drawLine(i * cellSize, 0f, i * cellSize, height.toFloat(), paintV)
+        // Potem rysuj grube linie bloków (na wierzchu)
+        // Poziome granice bloków
+        for (i in 0..boardSize step blockRows) {
+            canvas.drawLine(0f, i * cellSize, width.toFloat(), i * cellSize, thickLinePaint)
+        }
+
+        // Pionowe granice bloków
+        for (i in 0..boardSize step blockCols) {
+            canvas.drawLine(i * cellSize, 0f, i * cellSize, height.toFloat(), thickLinePaint)
         }
     }
 
