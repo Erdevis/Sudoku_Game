@@ -96,20 +96,29 @@ class GameActivity : AppCompatActivity(), SudokuBoardView.OnCellSelectedListener
         val size = sudokuBoard.boardSize
 
         numberPad.visibility = View.GONE
-        numberButtons.forEachIndexed { idx, btn ->
-            if (idx < size) {
-                btn.visibility = View.VISIBLE
-                btn.setOnClickListener {
-                    sudokuBoard.setCellValue(idx + 1)
-                    playSound()
-                    numberPad.visibility = View.GONE
-                }
+        numberButtons.forEach { it.visibility = View.GONE }
+
+        for (i in 0 until size) {
+            val btn = numberButtons[i]
+            btn.visibility = View.VISIBLE
+            btn.text = (i + 1).toString()
+            btn.setOnClickListener {
+                sudokuBoard.setCellValue(i + 1)
+                playSound()
+                numberPad.visibility = View.GONE
             }
         }
-        btnClear.setOnClickListener {
-            sudokuBoard.setCellValue(0)
-            playSound()
-            numberPad.visibility = View.GONE
+
+        // Ustaw podpowiedź i obsługę kliknięcia
+        btnClear.apply {
+            visibility = View.VISIBLE
+            text = "X"  // Symbol X
+            contentDescription = "Wyczyść"  // Dla dostępności
+            setOnClickListener {
+                sudokuBoard.setCellValue(0)
+                playSound()
+                numberPad.visibility = View.GONE
+            }
         }
     }
 }
